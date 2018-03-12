@@ -1,0 +1,270 @@
+%YAML 1.2
+---
+# See http://www.sublimetext.com/docs/3/syntax.html
+name: Flatdata
+file_extensions: [flatdata]
+scope: source.flatdata
+
+variables:
+  identifier: '\b[A-Za-z_][A-Za-z_0-9]*\b'
+  qualified_identifier: '\b[A-Za-z_\.][A-Za-z_\.0-9]*\b'
+  basic_type: '\b(bool|i8|u8|i16|u16|i32|u32|i64|u64)\b'
+  bit_width: '\b[0-9]+\b'
+  dec_literal: '\b[0-9]+\b'
+  hex_literal: '\b0x[0-9A-Fa-f]+\b'
+
+contexts:
+  prototype:
+    - include: comments
+
+  comments:
+    - match: '//'
+      scope: punctuation.definition.comment.flatdata
+      push:
+        - meta_scope: comment.line.double-slash.flatdata
+        - match: $\n?
+          pop: true
+    - match: '/\*'
+      scope: punctuation.definition.comment.begin.flatdata
+      push:
+        - meta_scope: comment.block.flatdata
+        - match: '\*/'
+          scope: punctuation.definition.comment.end.flatdata
+          pop: true
+
+  field:
+    - match: '{{identifier}}'
+      scope: variable.flatdata
+      push:
+        - match: ':'
+          set:
+            - match: '{{basic_type}}'
+              scope: storage.type.flatdata
+              set:
+                - match: ';'
+                  scope: punctuation.terminator.flatdata
+                  pop: true
+                - match: ':'
+                  set:
+                    - match: '{{bit_width}}'
+                      scope: storage.modifier.flatdata
+                      set:
+                        - match: ';'
+                          scope: punctuation.terminator.flatdata
+                          pop: true 
+
+  struct:
+    - match: '\bstruct\b'
+      scope: storage.type.flatdata
+      push: 
+        - match: '{{identifier}}'
+          scope: entity.name.struct.flatdata
+          set:
+            - match: '{'
+              scope: punctuation.section.braces.begin.flatdata
+              set:
+                - meta_scope: meta.struct.flatdata
+                - include: field
+                - match: '}'
+                  scope: punctuation.section.braces.end.flatdata
+                  pop: true
+
+  vector:
+    - match: '\bvector\b'
+      scope: storage.type.flatdata
+      set: 
+        - match: '<'
+          scope: punctuation.definition.generic.begin.flatdata
+          set: 
+            - match: '{{qualified_identifier}}'
+              scope: variable.parameter.flatdata
+              set:
+                - match: '>'
+                  scope: punctuation.definition.generic.end.flatdata
+                  set:
+                    - match: ';'
+                      scope: punctuation.terminator.flatdata
+                      pop: true
+
+  multivector:
+    - match: '\bmultivector\b'
+      scope: storage.type.flatdata
+      set:
+        - match: '<'
+          scope: punctuation.definition.generic.begin.flatdata
+          set:
+            - match: '{{bit_width}}'
+              scope: storage.modifier.flatdata
+              set:
+                - match: ','
+                  scope: punctuation.separator.sequence.flatdata
+                  push:
+                    - match: '{{qualified_identifier}}'
+                      scope: variable.parameter.flatdata
+                      pop: true
+                - match: '>'
+                  scope: punctuation.definition.generic.end.flatdata
+                  set:
+                    - match: ';'
+                      scope: punctuation.terminator.flatdata
+                      pop: true
+
+  single_object:
+    - match: '{{qualified_identifier}}'
+      scope: storage.type.flatdata
+      set:
+      - match: ';'
+        scope: punctuation.terminator.flatdata
+        pop: true
+
+  raw_data:
+    - match: '\braw_data\b'
+      scope: storage.type.flatdata
+      set: 
+        - match: ';'
+          scope: punctuation.terminator.flatdata
+          pop: true
+
+
+  archive_resource:
+    - match: '\barchive\b'
+      scope: storage.modifier.flatdata
+      set: 
+        - match: '{{qualified_identifier}}'
+          scope: storage.type.flatdata
+          set:
+            - match: ';'
+              scope: punctuation.terminator.flatdata
+              pop: true
+
+  resource_type:
+    - include: raw_data
+    - include: vector
+    - include: multivector
+    - include: archive_resource
+    - include: single_object # has to be last in the list, since the others have higher priority
+
+  explicit_reference:
+    - match: '@\bexplicit_reference\b'
+      scope: keyword.control.flatdata
+      push:
+        - match: '\('
+          scope: punctuation.section.parens.begin.flatdata
+          set:
+            - match: '{{qualified_identifier}}'
+              scope: variable.parameter.flatdata
+              set:
+                - match: ','
+                  scope: punctuation.separator.mapping.pair.flatdata
+                  set:
+                    - match: '{{qualified_identifier}}'
+                      scope: variable.parameter.flatdata
+                      set:
+                        - match: '\)'
+                          scope: punctuation.section.parens.end.flatdata
+                          pop: true
+
+  qualified_identifier_list:
+    - match: '{{qualified_identifier}}'
+      scope: variable.parameter.flatdata
+      set:
+        - match: '\)'
+          scope: punctuation.section.parens.end.flatdata
+          pop: true
+        - match: ','
+          scope: punctuation.separator.sequence.flatdata
+          set:
+            - include: qualified_identifier_list
+
+  
+  bound_implicitly:
+    - match: '@\bbound_implicitly\b'
+      scope: keyword.control.flatdata
+      push:
+        - match: '\('
+          scope: punctuation.section.parens.begin.flatdata
+          set:
+            - match: '{{identifier}}'
+              scope: variable.parameter.flatdata
+              set:
+                - match: ':'
+                  scope: punctuation.separator.mapping.key-value.flatdata
+                  set:
+                    - include: qualified_identifier_list
+
+  optional_decoration:
+    - match: '@\boptional\b'
+      scope: keyword.control.flatdata
+
+  resource_decorations:
+    - include: explicit_reference
+    - include: optional_decoration
+
+  archive_decorations:
+    - include: bound_implicitly
+
+  resource:
+    - include: resource_decorations
+    - match: '{{identifier}}'
+      scope: variable.flatdata
+      push:
+        - match: ':'
+          set:
+            - include: resource_type
+
+  archive:
+    - include: archive_decorations
+    - match: '\barchive\b'
+      scope: storage.type.flatdata
+      push:
+        - match: '{{identifier}}'
+          scope: entity.name.struct.flatdata
+          set:
+            - match: '{'
+              set:
+                - meta_scope: meta.struct.flatdata
+                - include: resource
+                - match: '}'
+                  pop: true
+
+  constant:
+    - match: '\bconst\b'
+      scope: storage.modifier.flatdata
+      push:
+        - match: '{{basic_type}}'
+          scope: storage.type.flatdata
+          set:
+            - match: '{{identifier}}'
+              scope: variable.other.constant.flatdata
+              set:
+                - match: '='
+                  scope: keyword.operator.assignment.flatdata
+                  set:
+                    - match: '{{dec_literal}}'
+                      scope: constant.numeric.integer.flatdata
+                    - match: '{{hex_literal}}'
+                      scope: constant.numeric.hex.flatdata
+                    - match: ';'
+                      pop: true
+
+  flatdata_entry:
+    - include: struct
+    - include: archive
+    - include: constant
+
+  namespace:
+    - match: '\bnamespace\b'
+      scope: keyword.other.flatdata
+      push:
+        - match: '{{identifier}}'
+          scope: entity.name.namespace.flatdata
+          set:
+            - match: '{'
+              set:
+                - meta_scope: meta.namespace.flatdata
+                - include: flatdata_entry
+                - match: '}'
+                  pop: true
+
+  main:
+    - include: namespace
