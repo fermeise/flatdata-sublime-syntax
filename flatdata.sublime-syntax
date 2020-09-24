@@ -32,13 +32,38 @@ contexts:
           scope: punctuation.definition.comment.end.flatdata
           pop: true
 
+  parenthesis_identifier:
+    - match: '\('
+      scope: punctuation.section.parens.begin.flatdata
+      set:
+        - match: '{{identifier}}'
+          scope: variable.parameter.flatdata
+          set:
+            - match: '\)'
+              scope: punctuation.section.parens.end.flatdata
+              pop: true
+
+  const_decoration:
+      - match: '@\bconst\b'
+        scope: keyword.control.flatdata
+        push:
+          - include: parenthesis_identifier
+
+  range_decoration:
+      - match: '@\brange\b'
+        scope: keyword.control.flatdata
+        push:
+          - include: parenthesis_identifier
+
   field:
+    - include: const_decoration
+    - include: range_decoration
     - match: '{{identifier}}'
       scope: variable.flatdata
       push:
         - match: ':'
           set:
-            - match: '{{basic_type}}'
+            - match: '{{basic_type}}|{{identifier}}'
               scope: storage.type.flatdata
               set:
                 - match: ';'
@@ -51,12 +76,12 @@ contexts:
                       set:
                         - match: ';'
                           scope: punctuation.terminator.flatdata
-                          pop: true 
+                          pop: true
 
   struct:
     - match: '\bstruct\b'
       scope: storage.type.flatdata
-      push: 
+      push:
         - match: '{{identifier}}'
           scope: entity.name.struct.flatdata
           set:
@@ -69,13 +94,43 @@ contexts:
                   scope: punctuation.section.braces.end.flatdata
                   pop: true
 
+  enumval:
+    - match: '{{identifier}}'
+      scope: enum.flatdata
+      push:
+        - match: '='
+          set:
+            - match: '{{dec_literal}}'
+              scope: enum.flatdata.modifier
+              pop: true
+        - match: ',{,1}'
+          scope: punctuation.terminator.flatdata
+          pop: true
+
+  enum:
+    - match: '\benum\b'
+      scope: storage.type.flatdata
+      push:
+        # TODO: make the three components scoped
+        - match: '{{identifier}}\s+:\s+{{basic_type}}\s+:\s+{{dec_literal}}'
+          scope: entity.name.enum.flatdata
+          set:
+            - match: '{'
+              scope: punctuation.section.braces.begin.flatdata
+              set:
+                - meta_scope: meta.enum.flatdata
+                - include: enumval
+                - match: '}'
+                  scope: punctuation.section.braces.end.flatdata
+                  pop: true
+
   vector:
     - match: '\bvector\b'
       scope: storage.type.flatdata
-      set: 
+      set:
         - match: '<'
           scope: punctuation.definition.generic.begin.flatdata
-          set: 
+          set:
             - match: '{{qualified_identifier}}'
               scope: variable.parameter.flatdata
               set:
@@ -120,7 +175,7 @@ contexts:
   raw_data:
     - match: '\braw_data\b'
       scope: storage.type.flatdata
-      set: 
+      set:
         - match: ';'
           scope: punctuation.terminator.flatdata
           pop: true
@@ -129,7 +184,7 @@ contexts:
   archive_resource:
     - match: '\barchive\b'
       scope: storage.modifier.flatdata
-      set: 
+      set:
         - match: '{{qualified_identifier}}'
           scope: storage.type.flatdata
           set:
@@ -176,7 +231,7 @@ contexts:
           set:
             - include: qualified_identifier_list
 
-  
+
   bound_implicitly:
     - match: '@\bbound_implicitly\b'
       scope: keyword.control.flatdata
@@ -249,6 +304,7 @@ contexts:
 
   flatdata_entry:
     - include: struct
+    - include: enum
     - include: archive
     - include: constant
 
