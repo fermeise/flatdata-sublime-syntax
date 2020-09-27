@@ -94,35 +94,56 @@ contexts:
                   scope: punctuation.section.braces.end.flatdata
                   pop: true
 
-  enumval:
+  enum_entry:
     - match: '{{identifier}}'
-      scope: enum.flatdata
+      scope: enum.entry.flatdata
       push:
         - match: '='
+          scope: punctuation.enum.entry.value
           set:
             - match: '{{dec_literal}}'
-              scope: enum.flatdata.modifier
-              pop: true
-        - match: ',{,1}'
-          scope: punctuation.terminator.flatdata
+              scope: enum.entry.value
+              set:
+                - match: ','
+                  scope: punctuation.terminator.enum.entry.flatdata
+                  pop: true
+        - match: ','
+          scope: punctuation.terminator.enum.entry.flatdata
+          pop: true
+        - match: (?=\S) # Last entry
+          pop: true
+
+  enum_list:
+    - match: '{'
+      scope: punctuation.section.braces.begin.flatdata
+      set:
+        - meta_scope: meta.enum.flatdata
+        - include: enum_entry
+        - match: '}'
+          scope: punctuation.section.braces.end.flatdata
           pop: true
 
   enum:
     - match: '\benum\b'
       scope: storage.type.flatdata
       push:
-        # TODO: make the three components scoped
-        - match: '{{identifier}}\s+:\s+{{basic_type}}\s+:\s+{{dec_literal}}'
+        - match: '{{identifier}}'
           scope: entity.name.enum.flatdata
           set:
-            - match: '{'
-              scope: punctuation.section.braces.begin.flatdata
+            - match: ':'
+              scope: punctuation.enum.type
               set:
-                - meta_scope: meta.enum.flatdata
-                - include: enumval
-                - match: '}'
-                  scope: punctuation.section.braces.end.flatdata
-                  pop: true
+                - match: '{{basic_type}}'
+                  scope: storage.enum.type
+                  set:
+                    - match: ':'
+                      scope: punctuation.enum.bit_width
+                      set:
+                        - match: '{{dec_literal}}'
+                          scope: storage.enum.bit_width
+                        - include: enum_list
+                    - include: enum_list
+
 
   vector:
     - match: '\bvector\b'
