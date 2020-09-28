@@ -96,19 +96,19 @@ contexts:
 
   enum_entry:
     - match: '{{identifier}}'
-      scope: enum.entry.flatdata
+      scope: parameter.enum.entry.flatdata
       push:
         - match: '='
           scope: punctuation.enum.entry.value
           set:
             - match: '{{dec_literal}}'
-              scope: enum.entry.value
+              scope: parameter.enum.entry.value
               set:
                 - match: ','
-                  scope: punctuation.terminator.enum.entry.flatdata
+                  scope: punctuation.separator.enum.entry.flatdata
                   pop: true
         - match: ','
-          scope: punctuation.terminator.enum.entry.flatdata
+          scope: punctuation.separator.enum.entry.flatdata
           pop: true
         - match: (?=\S) # Last entry
           pop: true
