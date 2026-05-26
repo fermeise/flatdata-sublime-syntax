@@ -7,7 +7,7 @@ scope: source.flatdata
 
 variables:
   identifier: '\b[A-Za-z_][A-Za-z_0-9]*\b'
-  qualified_identifier: '\b[A-Za-z_\.][A-Za-z_\.0-9]*\b'
+  qualified_identifier: '\.?\b[A-Za-z_][A-Za-z_\.0-9]*\b'
   basic_type: '\b(bool|i8|u8|i16|u16|i32|u32|i64|u64)\b'
   bit_width: '\b[0-9]+\b'
   dec_literal: '\b[0-9]+\b'
@@ -55,9 +55,16 @@ contexts:
         push:
           - include: parenthesis_identifier
 
+  optional_field_decoration:
+      - match: '@\boptional\b'
+        scope: keyword.control.flatdata
+        push:
+          - include: parenthesis_identifier
+
   field:
     - include: const_decoration
     - include: range_decoration
+    - include: optional_field_decoration
     - match: '{{identifier}}'
       scope: variable.flatdata
       push:
@@ -101,11 +108,21 @@ contexts:
         - match: '='
           scope: punctuation.enum.entry.value
           set:
+            - match: '{{hex_literal}}'
+              scope: parameter.enum.entry.value
+              set:
+                - match: ','
+                  scope: punctuation.separator.enum.entry.flatdata
+                  pop: true
+                - match: (?=\S) # Last entry
+                  pop: true
             - match: '{{dec_literal}}'
               scope: parameter.enum.entry.value
               set:
                 - match: ','
                   scope: punctuation.separator.enum.entry.flatdata
+                  pop: true
+                - match: (?=\S) # Last entry
                   pop: true
         - match: ','
           scope: punctuation.separator.enum.entry.flatdata
@@ -294,13 +311,15 @@ contexts:
       scope: storage.type.flatdata
       push:
         - match: '{{identifier}}'
-          scope: entity.name.struct.flatdata
+          scope: entity.name.class.flatdata
           set:
             - match: '{'
+              scope: punctuation.section.braces.begin.flatdata
               set:
-                - meta_scope: meta.struct.flatdata
+                - meta_scope: meta.archive.flatdata
                 - include: resource
                 - match: '}'
+                  scope: punctuation.section.braces.end.flatdata
                   pop: true
 
   constant:
@@ -316,10 +335,10 @@ contexts:
                 - match: '='
                   scope: keyword.operator.assignment.flatdata
                   set:
-                    - match: '{{dec_literal}}'
-                      scope: constant.numeric.integer.flatdata
-                    - match: '{{hex_literal}}'
+                    - match: '-?{{hex_literal}}'
                       scope: constant.numeric.hex.flatdata
+                    - match: '-?{{dec_literal}}'
+                      scope: constant.numeric.integer.flatdata
                     - match: ';'
                       pop: true
 
@@ -345,3 +364,4 @@ contexts:
 
   main:
     - include: namespace
+    - include: flatdata_entry
